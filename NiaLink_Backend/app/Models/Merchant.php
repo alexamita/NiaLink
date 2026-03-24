@@ -26,8 +26,8 @@ class Merchant extends Model
         'api_key',
         'webhook_url',
         'status',
-        'bank_name',
-        'bank_account_no',
+        'settlement_bank_name',
+        'settlement_bank_account_no',
     ];
 
     protected $hidden = [

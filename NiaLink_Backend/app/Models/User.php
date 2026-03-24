@@ -19,7 +19,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'phone_number',
-        'pin_hash',
+        'pin',
         'device_id',
         'fcm_token',
         'daily_limit_p2m',
@@ -33,7 +33,7 @@ class User extends Authenticatable
     ];
 
     protected $hidden = [
-        'pin_hash',
+        'pin',
         'password',
         'remember_token',
     ];
@@ -44,7 +44,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'pin_hash' => 'hashed',
+            'pin' => 'hashed',
             'biometric_enabled' => 'boolean',
             'last_login_at' => 'datetime',
             'daily_limit_p2m' => 'decimal:2',

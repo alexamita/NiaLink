@@ -9,7 +9,7 @@
 
 > **Fast. Secure. Reliable. — Powering modern digital payments for Africa.**
 
-NiaLink is a high-performance, secure digital payment ecosystem designed for the Kenyan market. It bridges the gap between physical retail (POS) and social (P2P) payments using a **Customer-First authorization model** — ensuring users always approve transactions on their own device, eliminating payment errors and fraud at the point of sale.
+NiaLink is a high-performance, secure digital payment ecosystem designed for the Kenyan and African market at large. It bridges the gap between physical retail (POS) and social (P2P) payments using a **Customer-First authorization model** ensuring users always approve transactions on their own device, eliminating payment errors and fraud at the point of sale.
 
 Money either moves completely or not at all. This is enforced through atomic database transactions, Redis locking, pessimistic wallet locking, and strict validation at every layer.
 
@@ -40,7 +40,7 @@ Kenya's payments landscape is dominated by M-Pesa, yet point-of-sale experiences
 - A customer generates a **short-lived 6-digit Nia-Code** in their app
 - The merchant enters the code at their terminal
 - The customer **reviews and approves the exact amount on their own device** via PIN
-- Money moves instantly — no card skimming, no wrong number, no fraud
+- Money moves instantly; no card skimming, no wrong number, no fraud
 
 The result is a closed-loop digital wallet ecosystem that works for supermarkets, fuel stations, e-commerce checkouts, and everyday peer-to-peer transfers — with sub-second processing and full double-entry auditability.
 
@@ -94,9 +94,9 @@ While the customer is looking at their phone, the POS terminal polls this endpoi
 For social transfers:
 
 1. App syncs contacts to identify existing NiaLink users
-2. Sender selects a contact — phone and name auto-populated
+2. Sender selects a contact; phone and name auto-populated
 3. Sender enters amount, confirms with 4-digit PIN
-4. Instant settlement — both parties notified in real time
+4. Instant settlement; both parties notified in real time
 
 ---
 
@@ -155,7 +155,7 @@ Merchant webhooks are signed with HMAC-SHA256 using the merchant's `api_key`, so
 
 ## 4. Database Schema
 
-NiaLink uses a **double-entry ledger model**. Every settlement creates two `ledger_entries` rows — one debit, one credit — so the total money in the system is always reconcilable. Wallet balances are never directly mutated without a corresponding ledger entry.
+NiaLink uses a **double-entry ledger model**. Every settlement creates two `ledger_entries` rows; one debit, one credit, so the total money in the system is always reconcilable. Wallet balances are never directly mutated without a corresponding ledger entry.
 
 ### Tables
 
@@ -271,7 +271,7 @@ POST   /api/admin/merchants/{id}/approve      Auth + can:admin-access
 POST /api/auth/register
 ```
 ```json
-{ "name": "Alex Kamau", "phone_number": "0712345678", "pin": "1234", "pin_confirmation": "1234" }
+{ "name": "Alex Amita", "phone_number": "0712345678", "pin": "1234", "pin_confirmation": "1234" }
 ```
 Creates a `pending_verification` user and auto-triggers OTP send. Returns OTP in response (`otp_debug` — remove in production).
 

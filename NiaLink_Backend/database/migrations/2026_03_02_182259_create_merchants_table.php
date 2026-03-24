@@ -41,8 +41,8 @@ return new class extends Migration
             $table->string('status')->default('pending')->index(); // pending, active, suspended
 
             // Financial Settlement (Where their money eventually goes)
-            $table->string('settlement_bank')->nullable();
-            $table->string('settlement_account')->nullable();
+            $table->string('settlement_bank_name')->nullable();
+            $table->string('settlement_bank_account_no')->nullable();
 
             $table->timestamps();
         });

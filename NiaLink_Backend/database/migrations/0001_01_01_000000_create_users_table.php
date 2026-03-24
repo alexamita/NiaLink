@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('phone_number')->unique()->index();
             // App PIN is the primary Auth for both Login & Payments
-            $table->string('pin_hash')->comment('Unified PIN for App Access and Transaction Auth');
+            $table->string('pin')->comment('Unified PIN for App Access and Transaction Auth');
             // Device Binding -- for security
             $table->string('device_id')->nullable()->unique()->index()
                 ->comment('Unique Hardware ID to prevent PIN use on other devices');
