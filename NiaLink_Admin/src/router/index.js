@@ -12,7 +12,7 @@ const placeholder = (title) => ({
 
 const routes = [
     { path: '/login',        name: 'login',        component: () => import('../views/LoginView.vue'),        meta: { public: true } },
-    { path: '/',              component: () => import('../views/OverviewView.vue') },
+    { path: '/',             component: () => import('../views/OverviewView.vue') },
     { path: '/merchants',    component: () => import('../views/MerchantsView.vue') },
     { path: '/transactions', component: () => import('../views/TransactionsView.vue') },
     { path: '/audit',        component: () => import('../views/AuditView.vue') },

@@ -25,8 +25,13 @@ const typeLabel = (type) => type?.split('\\').pop() ?? type ?? '—'
     <div>
         <div class="d-flex align-center justify-space-between mb-5">
             <div>
-                <h1 class="text-h5 font-weight-bold" style="letter-spacing:-0.02em">Liquidity</h1>
-                <div class="text-caption text-medium-emphasis">System-wide wallet float overview</div>
+                <div class="d-flex align-center gap-2 mb-1">
+                    <h1 style="font-size:20px;font-weight:700;letter-spacing:-0.02em;line-height:1.2">Liquidity</h1>
+                    <span style="font-size:12px;font-weight:600;color:rgba(0,0,0,0.45);background:rgba(0,0,0,0.06);border-radius:20px;padding:2px 8px">
+                        {{ data.wallets?.length ?? 0 }}
+                    </span>
+                </div>
+                <div style="font-size:12.5px;color:rgba(0,0,0,0.45)">System-wide wallet float overview.</div>
             </div>
         </div>
 

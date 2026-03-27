@@ -13,11 +13,14 @@ export const useAuthStore = defineStore('auth', () => {
         if (!data?.access_token) throw new Error(data?.message ?? 'Login failed')
         token.value = data.access_token
         user.value = data.user ?? null
-        localStorage.setItem('admin_token', data.token)
+        localStorage.setItem('admin_token', data.access_token)
         localStorage.setItem('admin_user', JSON.stringify(data.user ?? null))
     }
 
-    function logout() {
+    async function logout() {
+        try {
+            await api.logout()
+        } catch { /* token may already be invalid — proceed */ }
         token.value = null
         user.value = null
         localStorage.removeItem('admin_token')

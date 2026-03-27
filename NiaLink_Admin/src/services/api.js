@@ -15,6 +15,7 @@ const post = (path, body) => fetch(`${BASE}${path}`, {
 
 export const api = {
     login: (email, password) => post('/admin/login', { email, password }),
+    logout: () => post('/admin/logout'),
     stats: () => get('/admin/stats'),
     merchants: (params = {}) => get(`/admin/merchants?${new URLSearchParams(params)}`),
     transactions: (params = {}) => get(`/admin/transactions?${new URLSearchParams(params)}`),

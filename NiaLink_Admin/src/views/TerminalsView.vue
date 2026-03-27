@@ -1,16 +1,32 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { api } from '../services/api.js'
+import { useNotify } from '../composables/useNotify.js'
 
-const terminals = ref([])
-const loading = ref(true)
-const search = ref('')
+const { notify } = useNotify()
+
+// ── State ──────────────────────────────────────────────────────────────────
+const terminals    = ref([])
+const loading      = ref(true)
+const search       = ref('')
+const statusFilter = ref('all')
+const page         = ref(1)
+const perPage      = ref(15)
+const selectedIds  = ref([])
 const actionLoading = ref(null)
 
-onMounted(load)
+const statusTabs = [
+    { value: 'all',      label: 'All' },
+    { value: 'active',   label: 'Active' },
+    { value: 'locked',   label: 'Locked' },
+    { value: 'inactive', label: 'Inactive' },
+]
+const perPageOptions = [10, 15, 25, 50]
 
+// ── Load ────────────────────────────────────────────────────────────────────
 async function load() {
     loading.value = true
+    selectedIds.value = []
     try {
         const data = await api.terminals()
         terminals.value = Array.isArray(data) ? data : []
@@ -21,25 +37,56 @@ async function load() {
     }
 }
 
+onMounted(load)
+
+// ── Filter + Paginate ───────────────────────────────────────────────────────
 const filtered = computed(() => {
-    if (!search.value) return terminals.value
-    const q = search.value.toLowerCase()
-    return terminals.value.filter(t =>
-        t.terminal_code?.toLowerCase().includes(q) ||
-        t.merchant?.business_name?.toLowerCase().includes(q)
-    )
+    let list = terminals.value
+    if (statusFilter.value !== 'all') list = list.filter(t => t.status === statusFilter.value)
+    if (search.value) {
+        const q = search.value.toLowerCase()
+        list = list.filter(t =>
+            t.terminal_code?.toLowerCase().includes(q) ||
+            t.merchant?.business_name?.toLowerCase().includes(q)
+        )
+    }
+    return list
 })
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Never'
-const statusColor = (s) => ({ active: 'success', locked: 'error', inactive: 'warning' }[s] ?? 'default')
+const totalPages = computed(() => Math.ceil(filtered.value.length / perPage.value))
+const paginated  = computed(() => {
+    const start = (page.value - 1) * perPage.value
+    return filtered.value.slice(start, start + perPage.value)
+})
+const startRow = computed(() => filtered.value.length === 0 ? 0 : (page.value - 1) * perPage.value + 1)
+const endRow   = computed(() => Math.min(page.value * perPage.value, filtered.value.length))
 
+// ── Select-all ──────────────────────────────────────────────────────────────
+const allSelected = computed(() =>
+    paginated.value.length > 0 && paginated.value.every(t => selectedIds.value.includes(t.id))
+)
+function toggleAll() {
+    if (allSelected.value) {
+        selectedIds.value = selectedIds.value.filter(id => !paginated.value.find(t => t.id === id))
+    } else {
+        paginated.value.forEach(t => { if (!selectedIds.value.includes(t.id)) selectedIds.value.push(t.id) })
+    }
+}
+function toggleRow(id) {
+    const idx = selectedIds.value.indexOf(id)
+    if (idx === -1) selectedIds.value.push(id)
+    else selectedIds.value.splice(idx, 1)
+}
+
+// ── Actions ─────────────────────────────────────────────────────────────────
 const lock = async (terminal) => {
     actionLoading.value = terminal.id
     try {
         await api.lockTerminal(terminal.id)
         terminal.status = 'locked'
+        notify(`Terminal ${terminal.terminal_code} locked`, { subtitle: 'Terminal is now non-operational.', color: 'warning' })
     } catch (e) {
-        console.error('Lock failed', e)
+        notify('Lock failed', { color: 'error', subtitle: 'Please try again.' })
     } finally {
         actionLoading.value = null
     }
@@ -50,90 +97,245 @@ const unlock = async (terminal) => {
     try {
         await api.unlockTerminal(terminal.id)
         terminal.status = 'active'
+        notify(`Terminal ${terminal.terminal_code} unlocked`, { subtitle: 'Terminal is now operational.' })
     } catch (e) {
-        console.error('Unlock failed', e)
+        notify('Unlock failed', { color: 'error', subtitle: 'Please try again.' })
     } finally {
         actionLoading.value = null
     }
 }
+
+// ── Formatters ──────────────────────────────────────────────────────────────
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Never'
+const merchantInitials = (name) => name?.split(' ').slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('') ?? '??'
+const avatarColors = ['#2B9D8F', '#4DB6AC', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444']
 </script>
 
 <template>
     <div>
-        <div class="d-flex align-center justify-space-between mb-5">
+
+        <!-- ── Page Header ── -->
+        <div class="page-header mb-5">
             <div>
-                <h1 class="text-h5 font-weight-bold" style="letter-spacing:-0.02em">Terminals</h1>
-                <div class="text-caption text-medium-emphasis">Manage POS terminals across all merchants</div>
+                <div class="d-flex align-center gap-2">
+                    <h1 class="page-title">Terminals</h1>
+                    <span class="count-badge">{{ filtered.length }}</span>
+                </div>
+                <div class="page-subtitle">Manage POS terminals across all merchants.</div>
             </div>
-            <v-btn prepend-icon="mdi-refresh" variant="tonal" color="primary" size="small" rounded="lg"
-                :loading="loading" @click="load">Refresh</v-btn>
         </div>
 
+        <!-- ── Main Card ── -->
         <v-card variant="outlined" rounded="lg" class="page-card">
-            <div class="d-flex align-center justify-space-between px-4 pt-4 pb-3">
-                <div class="text-body-2 font-weight-medium">{{ filtered.length }} terminal{{ filtered.length !== 1 ? 's' : '' }}</div>
-                <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" placeholder="Search terminals..."
-                    variant="solo-filled" flat density="compact" hide-details rounded="lg" style="max-width:240px"
-                    bg-color="rgba(0,0,0,0.04)" />
-            </div>
-            <v-divider />
 
+            <!-- Controls row -->
+            <div class="controls-row">
+                <div class="view-toggle">
+                    <button class="view-btn view-btn--active">
+                        <v-icon size="13">mdi-table</v-icon> Table
+                    </button>
+                    <button class="view-btn">
+                        <v-icon size="13">mdi-format-list-bulleted</v-icon> List
+                    </button>
+                </div>
+                <div class="controls-right">
+                    <v-text-field
+                        v-model="search"
+                        prepend-inner-icon="mdi-magnify"
+                        placeholder="Search terminals..."
+                        variant="solo-filled" flat density="compact" hide-details rounded="lg"
+                        style="max-width:200px" bg-color="rgba(0,0,0,0.04)"
+                        @update:model-value="page = 1"
+                    />
+                    <button class="ctrl-btn" @click="load"><v-icon size="14">mdi-refresh</v-icon></button>
+                    <button class="ctrl-btn"><v-icon size="14">mdi-export-variant</v-icon> Export</button>
+                </div>
+            </div>
+
+            <!-- Filter pills -->
+            <div class="filter-row">
+                <button
+                    v-for="tab in statusTabs" :key="tab.value"
+                    class="filter-pill" :class="statusFilter === tab.value ? 'filter-pill--active' : ''"
+                    @click="statusFilter = tab.value; page = 1"
+                >
+                    {{ tab.label }} <v-icon size="12">mdi-chevron-down</v-icon>
+                </button>
+                <button class="filter-pill filter-pill--add">
+                    <v-icon size="12">mdi-plus</v-icon> Add filter
+                </button>
+            </div>
+
+            <v-divider style="opacity:0.4" />
+
+            <!-- Loading -->
             <template v-if="loading">
                 <div class="pa-4">
-                    <v-skeleton-loader v-for="i in 6" :key="i" type="list-item-avatar" class="mb-1" />
+                    <v-skeleton-loader v-for="i in 8" :key="i" type="list-item-avatar" class="mb-1" />
                 </div>
             </template>
 
+            <!-- Table -->
             <template v-else>
                 <v-table density="compact" class="data-table">
                     <thead>
                         <tr>
+                            <th style="width:40px;padding-left:16px">
+                                <input type="checkbox" :checked="allSelected" @change="toggleAll" class="row-check" />
+                            </th>
                             <th>Terminal Code</th>
                             <th>Merchant</th>
-                            <th class="text-center">Status</th>
+                            <th>Status</th>
                             <th>Last Active</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="filtered.length === 0">
-                            <td colspan="5" class="text-center py-10">
-                                <v-icon size="40" color="grey-lighten-2" class="mb-2 d-block mx-auto">mdi-point-of-sale</v-icon>
+                        <tr v-if="paginated.length === 0">
+                            <td colspan="6" class="text-center py-12">
+                                <v-icon size="38" color="grey-lighten-2" class="mb-2 d-block mx-auto">mdi-point-of-sale</v-icon>
                                 <div class="text-body-2 text-medium-emphasis">No terminals found</div>
                             </td>
                         </tr>
-                        <tr v-for="t in filtered" :key="t.id" class="data-row">
+                        <tr v-for="(t, i) in paginated" :key="t.id" class="data-row" :class="selectedIds.includes(t.id) ? 'data-row--selected' : ''">
+                            <td style="padding-left:16px">
+                                <input type="checkbox" :checked="selectedIds.includes(t.id)" @change="toggleRow(t.id)" class="row-check" />
+                            </td>
                             <td>
                                 <code class="ref-code">{{ t.terminal_code }}</code>
                             </td>
-                            <td class="text-body-2">{{ t.merchant?.business_name ?? '—' }}</td>
-                            <td class="text-center">
-                                <v-chip size="x-small" :color="statusColor(t.status)" variant="tonal">{{ t.status }}</v-chip>
+                            <td>
+                                <div class="d-flex align-center gap-2">
+                                    <v-avatar
+                                        :color="avatarColors[i % avatarColors.length]"
+                                        size="26"
+                                        style="font-size:9px;font-weight:700;color:#fff;flex-shrink:0"
+                                    >
+                                        {{ merchantInitials(t.merchant?.business_name) }}
+                                    </v-avatar>
+                                    <span class="text-body-2">{{ t.merchant?.business_name ?? '—' }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="status-cell">
+                                    <span class="status-dot" :class="t.status"></span>
+                                    <span class="status-text">{{ t.status }}</span>
+                                </div>
                             </td>
                             <td class="text-caption text-medium-emphasis">{{ fmtDate(t.last_active_at) }}</td>
                             <td class="text-center">
-                                <v-btn v-if="t.status === 'active'" size="x-small" color="error" variant="tonal"
-                                    rounded="lg" :loading="actionLoading === t.id" @click="lock(t)">
-                                    Lock
-                                </v-btn>
-                                <v-btn v-else size="x-small" color="success" variant="tonal"
-                                    rounded="lg" :loading="actionLoading === t.id" @click="unlock(t)">
-                                    Unlock
-                                </v-btn>
+                                <div class="d-flex justify-center gap-1">
+                                    <button
+                                        v-if="t.status === 'active'"
+                                        class="action-btn action-btn--lock"
+                                        :disabled="actionLoading === t.id"
+                                        @click="lock(t)"
+                                    >
+                                        <v-icon size="12">mdi-lock-outline</v-icon> Lock
+                                    </button>
+                                    <button
+                                        v-else
+                                        class="action-btn action-btn--unlock"
+                                        :disabled="actionLoading === t.id"
+                                        @click="unlock(t)"
+                                    >
+                                        <v-icon size="12">mdi-lock-open-outline</v-icon> Unlock
+                                    </button>
+                                    <button class="action-btn action-btn--edit">
+                                        <v-icon size="12">mdi-pencil-outline</v-icon> Edit
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
                 </v-table>
+
+                <!-- Pagination -->
+                <div class="pagination-row">
+                    <div class="pagination-left">
+                        <span class="pg-label">Rows per page</span>
+                        <select v-model="perPage" class="pg-select" @change="page = 1">
+                            <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }}</option>
+                        </select>
+                    </div>
+                    <div class="pagination-center text-caption text-medium-emphasis">
+                        {{ startRow }}–{{ endRow }} of {{ filtered.length }} terminals
+                    </div>
+                    <div class="pagination-right">
+                        <button class="pg-btn" :disabled="page === 1" @click="page = 1">«</button>
+                        <button class="pg-btn" :disabled="page === 1" @click="page--">‹</button>
+                        <template v-for="p in totalPages" :key="p">
+                            <button v-if="p === 1 || p === totalPages || Math.abs(p - page) <= 1"
+                                class="pg-btn" :class="p === page ? 'pg-btn--active' : ''" @click="page = p">{{ p }}</button>
+                            <span v-else-if="p === 2 && page > 3" class="pg-ellipsis">…</span>
+                            <span v-else-if="p === totalPages - 1 && page < totalPages - 2" class="pg-ellipsis">…</span>
+                        </template>
+                        <button class="pg-btn" :disabled="page === totalPages || totalPages === 0" @click="page++">›</button>
+                        <button class="pg-btn" :disabled="page === totalPages || totalPages === 0" @click="page = totalPages">»</button>
+                    </div>
+                </div>
             </template>
+
         </v-card>
     </div>
 </template>
 
 <style scoped>
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.page-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.count-badge { font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.45); background: rgba(0,0,0,0.06); border-radius: 20px; padding: 2px 8px; }
+.page-subtitle { font-size: 12.5px; color: rgba(0,0,0,0.45); margin-top: 3px; }
 .page-card { background: #fff; border-color: rgba(0,0,0,0.08) !important; }
-.data-table :deep(thead tr th) { color: rgba(0,0,0,0.45) !important; font-weight: 600 !important; font-size: 11px !important; letter-spacing: 0.03em !important; text-transform: uppercase; padding: 10px 16px !important; border-bottom: 1px solid rgba(0,0,0,0.07) !important; background: rgba(0,0,0,0.015); }
-.data-table :deep(tbody tr td) { font-size: 13px !important; padding: 9px 16px !important; border-bottom: 1px solid rgba(0,0,0,0.045) !important; vertical-align: middle; }
+
+.controls-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 8px; gap: 8px; flex-wrap: wrap; }
+.controls-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.view-toggle { display: flex; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+.view-btn { display: flex; align-items: center; gap: 4px; padding: 5px 10px; font-size: 12px; font-weight: 500; border: none; background: none; cursor: pointer; color: rgba(0,0,0,0.5); font-family: inherit; }
+.view-btn:not(:last-child) { border-right: 1px solid rgba(0,0,0,0.1); }
+.view-btn--active { background: rgba(43,157,143,0.1); color: #2B9D8F; font-weight: 600; }
+.ctrl-btn { display: flex; align-items: center; gap: 4px; padding: 5px 10px; font-size: 12px; font-weight: 500; border: 1px solid rgba(0,0,0,0.1); border-radius: 7px; background: #fff; cursor: pointer; color: rgba(0,0,0,0.6); font-family: inherit; white-space: nowrap; transition: background 0.12s; }
+.ctrl-btn:hover { background: rgba(0,0,0,0.04); }
+
+.filter-row { display: flex; align-items: center; gap: 6px; padding: 8px 14px; flex-wrap: wrap; }
+.filter-pill { display: flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 12px; font-weight: 500; border: 1px solid rgba(0,0,0,0.12); border-radius: 20px; background: #fff; cursor: pointer; color: rgba(0,0,0,0.55); font-family: inherit; transition: background 0.12s; }
+.filter-pill:hover { background: rgba(0,0,0,0.03); }
+.filter-pill--active { background: rgba(43,157,143,0.08); border-color: rgba(43,157,143,0.4); color: #2B9D8F; font-weight: 600; }
+.filter-pill--add { border-style: dashed; color: rgba(0,0,0,0.38); }
+
+.data-table :deep(thead tr th) { color: rgba(0,0,0,0.42) !important; font-weight: 600 !important; font-size: 10.5px !important; letter-spacing: 0.04em !important; text-transform: uppercase; padding: 9px 12px !important; border-bottom: 1px solid rgba(0,0,0,0.07) !important; background: rgba(0,0,0,0.015); white-space: nowrap; }
+.data-table :deep(tbody tr td) { font-size: 13px !important; padding: 9px 12px !important; border-bottom: 1px solid rgba(0,0,0,0.04) !important; vertical-align: middle; }
 .data-row { transition: background 0.1s; }
-.data-row:hover { background: rgba(43,157,143,0.04) !important; }
-.ref-code { font-family: 'Courier New', monospace; font-size: 11px; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; color: rgba(0,0,0,0.65); }
+.data-row:hover { background: rgba(43,157,143,0.03) !important; }
+.data-row--selected { background: rgba(43,157,143,0.06) !important; }
+.row-check { width: 14px; height: 14px; cursor: pointer; accent-color: #2B9D8F; }
+
+.status-cell { display: flex; align-items: center; gap: 6px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.active   { background: #22C55E; }
+.status-dot.locked   { background: #EF4444; }
+.status-dot.inactive { background: #F59E0B; }
+.status-text { font-size: 12.5px; font-weight: 500; color: rgba(0,0,0,0.7); text-transform: capitalize; }
+
+.action-btn { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px; font-size: 11.5px; font-weight: 500; border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; background: #fff; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.action-btn--lock   { color: #dc2626; border-color: rgba(239,68,68,0.3); }
+.action-btn--lock:hover:not(:disabled) { background: rgba(239,68,68,0.07); }
+.action-btn--unlock { color: #16a34a; border-color: rgba(34,197,94,0.3); }
+.action-btn--unlock:hover:not(:disabled) { background: rgba(34,197,94,0.07); }
+.action-btn--edit { color: rgba(0,0,0,0.5); }
+.action-btn--edit:hover { background: rgba(0,0,0,0.05); }
+
+.ref-code { font-family: 'Courier New', monospace; font-size: 11px; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; color: rgba(0,0,0,0.6); }
+
+.pagination-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-top: 1px solid rgba(0,0,0,0.06); flex-wrap: wrap; gap: 8px; }
+.pagination-left { display: flex; align-items: center; gap: 8px; }
+.pagination-center { flex: 1; text-align: center; }
+.pagination-right { display: flex; align-items: center; gap: 2px; }
+.pg-label { font-size: 12px; color: rgba(0,0,0,0.5); }
+.pg-select { font-size: 12px; font-weight: 500; color: rgba(0,0,0,0.7); border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; padding: 2px 6px; background: #fff; cursor: pointer; font-family: inherit; }
+.pg-btn { min-width: 28px; height: 28px; padding: 0 6px; font-size: 12px; font-weight: 500; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; background: #fff; cursor: pointer; color: rgba(0,0,0,0.6); font-family: inherit; display: inline-flex; align-items: center; justify-content: center; transition: background 0.1s; }
+.pg-btn:hover:not(:disabled) { background: rgba(0,0,0,0.05); }
+.pg-btn--active { background: #2B9D8F !important; color: #fff !important; border-color: #2B9D8F !important; }
+.pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pg-ellipsis { font-size: 12px; color: rgba(0,0,0,0.35); padding: 0 4px; align-self: center; }
 </style>
