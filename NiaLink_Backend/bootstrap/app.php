@@ -32,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
      * Global and specific middleware stack setup (e.g., Sanctum, CSRF).
      */
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->statefulApi();
     })
 
 

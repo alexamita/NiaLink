@@ -3,7 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Api\NiaCodeController;
 use App\Http\Controllers\Api\MerchantPaymentController;
-use App\Http\Controllers\Api\AppApprovalController;
+use App\Http\Controllers\AppApprovalController;
 use App\Http\Controllers\Api\TerminalController;
 use App\Http\Controllers\Api\Admin\ManagementController;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Route;
 | 1. PUBLIC IDENTITY ROUTES (Auth & Security)
 |---------------------------------------------
 */
+// Admin console login (email + password)
+Route::post('admin/login', [AuthController::class, 'adminLogin'])->middleware('throttle:6,1');
+
 Route::prefix('auth')->group(function () {
     Route::middleware('throttle:6,1')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
@@ -69,6 +72,26 @@ Route::prefix('pos')->group(function () {
 |----------------------------------
 */
 Route::middleware(['auth:sanctum', 'can:admin-access'])->prefix('admin')->group(function () {
+
+    // Dashboard stats card
     Route::get('stats', [ManagementController::class, 'dashboard']);
+
+    // Merchant management
+    Route::get('merchants', [ManagementController::class, 'listMerchants']);
     Route::post('merchants/{id}/approve', [ManagementController::class, 'approveMerchant']);
+    Route::post('merchants/{id}/suspend', [ManagementController::class, 'suspendMerchant']);
+
+    // Transaction ledger
+    Route::get('transactions', [ManagementController::class, 'listTransactions']);
+
+    // Security audit trail
+    Route::get('audit', [ManagementController::class, 'listAuditLogs']);
+
+    // Liquidity / wallet overview
+    Route::get('wallets', [ManagementController::class, 'listWallets']);
+
+    // Terminal management
+    Route::get('terminals', [ManagementController::class, 'listTerminals']);
+    Route::post('terminals/{id}/lock', [ManagementController::class, 'lockTerminal']);
+    Route::post('terminals/{id}/unlock', [ManagementController::class, 'unlockTerminal']);
 });

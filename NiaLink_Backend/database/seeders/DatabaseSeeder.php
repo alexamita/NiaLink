@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             MerchantSeeder::class,
+            AdminSeeder::class,
         ]);
 
         $this->command->info('NiaLink Test Data Seeded Successfully!');

@@ -1,0 +1,65 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto Condensed', sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Override Vuetify's internal font stack */
+.v-application,
+.v-application * {
+    font-family: 'Roboto Condensed', sans-serif !important;
+}
+
+/* App background */
+.v-application {
+    background: #EFF4F3 !important;
+}
+
+.v-main {
+    background: #EFF4F3;
+}
+
+/* Tighter card borders */
+.v-card.v-card--variant-outlined {
+    border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Compact v-list items in nav */
+.v-navigation-drawer .v-list-item {
+    min-height: 34px !important;
+}
+
+/* Remove focus ring on buttons */
+button:focus {
+    outline: none;
+}
+
+button:focus-visible {
+    outline: none;
+}
+
+/* Subtle scrollbar */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+/* Table row hover */
+.v-data-table tbody tr:hover {
+    background: rgba(43, 157, 143, 0.04) !important;
+}

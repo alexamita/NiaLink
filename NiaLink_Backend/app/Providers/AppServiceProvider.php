@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
+
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Define the admin-access Gate.
+        // This closure runs for every request hitting a route that has the 'can:admin-access' middleware.
+        Gate::define('admin-access', function (User $user) {
+            return in_array($user->user_role, ['admin', 'merchant_admin']);
+        });
     }
 }

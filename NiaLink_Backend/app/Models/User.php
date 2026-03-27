@@ -18,10 +18,13 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'email',
+        'password',
         'phone_number',
         'pin',
         'device_id',
         'fcm_token',
+        'user_role',
         'daily_limit_p2m',
         'daily_limit_p2p',
         'daily_transaction_count_limit',
@@ -44,11 +47,12 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'pin' => 'hashed',
+            'pin'              => 'hashed',
+            'password'         => 'hashed',
             'biometric_enabled' => 'boolean',
-            'last_login_at' => 'datetime',
-            'daily_limit_p2m' => 'decimal:2',
-            'daily_limit_p2p' => 'decimal:2',
+            'last_login_at'    => 'datetime',
+            'daily_limit_p2m'  => 'decimal:2',
+            'daily_limit_p2p'  => 'decimal:2',
         ];
     }
 

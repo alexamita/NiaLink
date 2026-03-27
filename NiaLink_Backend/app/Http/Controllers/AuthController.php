@@ -135,6 +135,64 @@ class AuthController extends Controller
 
 
     /**
+     * ADMIN LOGIN — Web Console (Public Flow).
+     *
+     * Authenticates admins and merchant admins via email + password.
+     * Mobile PIN credentials are not accepted here.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function adminLogin(Request $request)
+    {
+        $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Invalid email or password.',
+            ], 401);
+        }
+
+        if (!in_array($user->user_role, ['admin', 'merchant_admin'])) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Access denied. This portal is for administrators only.',
+            ], 403);
+        }
+
+        if ($user->status !== 'active') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Your account is suspended. Contact support.',
+            ], 403);
+        }
+
+        $user->update(['last_login_at' => now()]);
+
+        $token = $user->createToken('admin_console')->plainTextToken;
+
+        return response()->json([
+            'status'       => 'success',
+            'message'      => 'Login successful.',
+            'access_token' => $token,
+            'token_type'   => 'Bearer',
+            'user'         => [
+                'id'        => $user->id,
+                'name'      => $user->name,
+                'email'     => $user->email,
+                'user_role' => $user->user_role,
+            ],
+        ]);
+    }
+
+
+    /**
      * Step 4: LOGIN to the account [Public Flow].
      * * Authenticates the user via phone number and 4-digit PIN.
      * If successful, issues a Sanctum PlainTextToken for API access.
